@@ -38,6 +38,10 @@ func main() {
 		catFileCommand := commands.CatFileCommand{}
 		catFileCommand.Execute(&commands.Command{Args: os.Args[2:]})
 
+	case "hash-object":
+		hashObjectCommand := commands.HashObjectCommand{}
+		hashObjectCommand.Execute(&commands.Command{Args: os.Args[2:]})
+
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %s\n", command)
 		os.Exit(1)
