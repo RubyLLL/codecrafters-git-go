@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"github.com/codecrafters-io/git-starter-go/app/commands"
 )
 
 // Usage: your_program.sh <command> <arg1> <arg2> ...
@@ -31,6 +33,10 @@ func main() {
 		}
 
 		fmt.Println("Initialized git directory")
+
+	case "cat-file":
+		catFileCommand := commands.CatFileCommand{}
+		catFileCommand.Execute(&commands.Command{Args: os.Args[2:]})
 
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %s\n", command)
