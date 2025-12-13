@@ -1,10 +1,7 @@
 package commands
 
 import (
-	"bytes"
-	"compress/zlib"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 )
@@ -17,37 +14,22 @@ func (c *CatFileCommand) Execute(cmd *Command) {
 		os.Exit(1)
 	}
 
-	// 1. Read the contents of the blob object file from the .git/objects directory
-	dir := cmd.Args[1][:2]
-	file := cmd.Args[1][2:]
-
-	content, err := os.ReadFile(".git/objects/" + dir + "/" + file)
+	// Read and decompress the git object
+	data, err := ReadGitObject(cmd.Args[1])
 	if err != nil {
-		fmt.Println("Error opening file:", err)
+		fmt.Fprintf(os.Stderr, "Error reading git object: %s\n", err)
 		os.Exit(1)
 	}
 
-	// 2. Decompress the contents using Zlib
-	z, err := zlib.NewReader(bytes.NewReader(content))
+	// Parse the object to extract content
+	_, content, err := ParseGitObject(data)
 	if err != nil {
-		fmt.Println("Error creating zlib reader:", err)
-		os.Exit(1)
-	}
-	defer z.Close()
-
-	p, err := io.ReadAll(z)
-	if err != nil {
-		fmt.Println("Error reading from zlib reader:", err)
+		fmt.Fprintf(os.Stderr, "Error parsing git object: %s\n", err)
 		os.Exit(1)
 	}
 
-	// 3. Extract the actual "content" from the decompressed data
-	contentStr := string(p)
-	actualContent := contentStr[5:] // chop off the "blob " prefix
-	parts := strings.Split(actualContent, "\x00")
-
-	// 4.Print the content to stdout
-	fmt.Printf("%s", strings.TrimSuffix(parts[1], "\n"))
+	// Print the content to stdout
+	fmt.Printf("%s", strings.TrimSuffix(string(content), "\n"))
 }
 
 func (c *CatFileCommand) GetName() string {

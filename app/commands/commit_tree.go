@@ -2,9 +2,6 @@ package commands
 
 import (
 	"bytes"
-	"compress/zlib"
-	"crypto/sha1"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"time"
@@ -66,37 +63,8 @@ func (c *CommitTreeCommand) Execute(cmd *Command) error {
 	fmt.Fprintf(&contentBytes, "committer %s <%s> %d +0000\n", "Xiaoyue Lyu", "xlyu00green@gmail.com", timestamp)
 	fmt.Fprintf(&contentBytes, "\n%s\n", commitMsg)
 
-	// Create tree object with header
-	header := fmt.Sprintf("commit %d\x00", contentBytes.Len())
-	fullContent := append([]byte(header), contentBytes.Bytes()...)
-
-	// Compress the content
-	var compressed bytes.Buffer
-	w := zlib.NewWriter(&compressed)
-	_, err := w.Write(fullContent)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error compressing tree object: %s\n", err)
-		os.Exit(1)
-	}
-	w.Close()
-
-	// Generate SHA-1 hash
-	objSHA := sha1.Sum(fullContent)
-	sha := hex.EncodeToString(objSHA[:])
-
-	// Write to .git/objects directory
-	dirName := sha[:2]
-	fileName := sha[2:]
-	if err := os.MkdirAll(".git/objects/"+dirName, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating directory: %s\n", err)
-		os.Exit(1)
-	}
-	err = os.WriteFile(".git/objects/"+dirName+"/"+fileName, compressed.Bytes(), 0644)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing tree object to disk: %s\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Print(sha)
+	// Write commit object using common function
+	sha := WriteGitObject(CommitObject, contentBytes.Bytes(), true)
+	fmt.Print(string(sha))
 	return nil
 }

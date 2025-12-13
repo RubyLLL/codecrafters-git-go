@@ -2,9 +2,7 @@ package commands
 
 import (
 	"bytes"
-	"compress/zlib"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 )
@@ -21,33 +19,23 @@ func (c *LsTreeComand) Execute(cmd *Command) {
 		os.Exit(1)
 	}
 
-	// Read from the file
-	filePath := fmt.Sprintf(".git/objects/%s/%s", cmd.Args[1][:2], cmd.Args[1][2:])
-	fileBytes, err := os.ReadFile(filePath)
+	// Read and decompress the git object
+	data, err := ReadGitObject(cmd.Args[1])
 	if err != nil {
-		fmt.Println("failed to read the file")
+		fmt.Fprintf(os.Stderr, "Error reading git object: %s\n", err)
 		os.Exit(1)
 	}
 
-	// Decompress the content
-	b := bytes.NewReader(fileBytes)
-	r, err := zlib.NewReader(b)
+	// Parse the tree object
+	_, content, err := ParseGitObject(data)
 	if err != nil {
-		fmt.Println("failed to decompress the content")
-		os.Exit(1)
-	}
-	defer r.Close()
-
-	decompressedBytes, err := io.ReadAll(r)
-	if err != nil {
-		fmt.Println("failed to read the content")
+		fmt.Fprintf(os.Stderr, "Error parsing git object: %s\n", err)
 		os.Exit(1)
 	}
 
-	// Parse the content
+	// Parse tree entries: <mode> <name>\0<20_byte_sha>
 	var result string
-	//   tree <size>\0<mode> <name>\0<20_byte_sha><mode> <name>\0<20_byte_sha>
-	lines := bytes.Split(decompressedBytes, []byte("\x00"))[1:]
+	lines := bytes.Split(content, []byte("\x00"))
 	for _, line := range lines {
 		parts := bytes.Split(line, []byte(" "))
 		if len(parts) >= 2 {
