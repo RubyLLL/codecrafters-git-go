@@ -42,6 +42,10 @@ func main() {
 		hashObjectCommand := commands.HashObjectCommand{}
 		hashObjectCommand.Execute(&commands.Command{Args: os.Args[2:]})
 
+	case "ls-tree":
+		lsTreeCommand := commands.LsTreeComand{}
+		lsTreeCommand.Execute(&commands.Command{Args: os.Args[2:]})
+
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %s\n", command)
 		os.Exit(1)
