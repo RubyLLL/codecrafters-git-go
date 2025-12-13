@@ -20,9 +20,15 @@ func (c *HashObjectCommand) Execute(cmd *Command) {
 		fmt.Println(cmd.Usage)
 		os.Exit(1)
 	}
+	sha := string(CreateBlob(cmd.Args[1], true))
 
+	// 5. Print the SHA-1 hash
+	fmt.Printf("%s", sha)
+}
+
+func CreateBlob(path string, hexCoded bool) []byte {
 	// 1. Compose blob content
-	fileContent, err := os.ReadFile(cmd.Args[1])
+	fileContent, err := os.ReadFile(path)
 	if err != nil {
 		fmt.Println("Error reading file:", err)
 		os.Exit(1)
@@ -37,7 +43,7 @@ func (c *HashObjectCommand) Execute(cmd *Command) {
 	_, err = w.Write(content)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error compressing git object: %s\n", err)
-		return
+		return []byte("\n")
 	}
 	w.Close()
 
@@ -55,9 +61,11 @@ func (c *HashObjectCommand) Execute(cmd *Command) {
 	err = os.WriteFile(".git/objects/"+dirName+"/"+fileName, b.Bytes(), 0644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing git object to disk: %s\n", err)
-		return
+		return []byte("\n")
 	}
 
-	// 5. Print the SHA-1 hash
-	fmt.Printf("%s", sha)
+	if hexCoded {
+		return []byte(sha)
+	}
+	return objSHA[:]
 }

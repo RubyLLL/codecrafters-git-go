@@ -46,11 +46,12 @@ func (c *LsTreeComand) Execute(cmd *Command) {
 
 	// Parse the content
 	var result string
+	//   tree <size>\0<mode> <name>\0<20_byte_sha><mode> <name>\0<20_byte_sha>
 	lines := bytes.Split(decompressedBytes, []byte("\x00"))[1:]
 	for _, line := range lines {
 		parts := bytes.Split(line, []byte(" "))
 		if len(parts) >= 2 {
-			result = fmt.Sprintf("%s\n%s", result, string(parts[1]))
+			result = fmt.Sprintf("%s\n%s", result, string(parts[len(parts)-1]))
 		}
 	}
 	result += "\n"

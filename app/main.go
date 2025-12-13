@@ -46,6 +46,10 @@ func main() {
 		lsTreeCommand := commands.LsTreeComand{}
 		lsTreeCommand.Execute(&commands.Command{Args: os.Args[2:]})
 
+	case "write-tree":
+		writeTreeCommand := commands.WriteTreeCommand{}
+		writeTreeCommand.Execute(&commands.Command{Args: os.Args[1:]})
+
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %s\n", command)
 		os.Exit(1)
