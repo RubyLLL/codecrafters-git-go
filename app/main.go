@@ -50,6 +50,10 @@ func main() {
 		writeTreeCommand := commands.WriteTreeCommand{}
 		writeTreeCommand.Execute(&commands.Command{Args: os.Args[1:]})
 
+	case "commit-tree":
+		commitTreeCommand := commands.CommitTreeCommand{}
+		commitTreeCommand.Execute(&commands.Command{Args: os.Args[2:]})
+
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %s\n", command)
 		os.Exit(1)
