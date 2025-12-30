@@ -54,6 +54,10 @@ func main() {
 		commitTreeCommand := commands.CommitTreeCommand{}
 		commitTreeCommand.Execute(&commands.Command{Args: os.Args[2:]})
 
+	case "clone":
+		cloneCommand := commands.CloneCommand{}
+		cloneCommand.Execute(&commands.Command{Args: os.Args[2:]})
+
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %s\n", command)
 		os.Exit(1)
