@@ -85,7 +85,7 @@ func (c *CloneCommand) Execute(cmd *Command) error {
 
 	// Try to checkout the working directory
 	if err := checkoutWorkingDirectory(headRef); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: error checking out working directory: %v\n", err)
+		return fmt.Errorf("error checking out working directory: %w", err)
 	}
 
 	fmt.Println("Repository cloned successfully!")
@@ -153,9 +153,15 @@ func checkoutWorkingDirectory(commitSHA string) error {
 		return fmt.Errorf("error reading commit object: %w", err)
 	}
 
+	// Parse the commit object to strip the header
+	_, commitContent, err := ParseGitObject(commitData)
+	if err != nil {
+		return fmt.Errorf("error parsing commit object: %w", err)
+	}
+
 	// Parse the commit to get the tree SHA
 	// Commit format: "tree <tree_sha>\nparent ...\nauthor ...\ncommitter ...\n\n<message>"
-	commitLines := strings.Split(string(commitData), "\n")
+	commitLines := strings.Split(string(commitContent), "\n")
 	if len(commitLines) < 1 {
 		return fmt.Errorf("invalid commit format")
 	}
@@ -166,7 +172,6 @@ func checkoutWorkingDirectory(commitSHA string) error {
 	}
 
 	treeSHA := strings.TrimSpace(strings.TrimPrefix(treeLine, "tree "))
-	fmt.Printf("Checking out tree: %s\n", treeSHA)
 
 	// Read and parse the tree object
 	return checkoutTree(treeSHA, ".")
@@ -174,20 +179,22 @@ func checkoutWorkingDirectory(commitSHA string) error {
 
 // checkoutTree recursively checks out a tree object to the filesystem
 func checkoutTree(treeSHA, basePath string) error {
-	fmt.Printf("Checking out tree %s to %s\n", treeSHA, basePath)
-
 	// Read the tree object
-	treeData, err := ReadGitObject(treeSHA)
+	treeDataRaw, err := ReadGitObject(treeSHA)
 	if err != nil {
 		return fmt.Errorf("error reading tree object %s: %w", treeSHA, err)
+	}
+
+	// Parse the tree object to strip the header
+	_, treeData, err := ParseGitObject(treeDataRaw)
+	if err != nil {
+		return fmt.Errorf("error parsing tree object %s: %w", treeSHA, err)
 	}
 
 	// Parse the tree data
 	// Tree format: [<mode> <name>\0<20_byte_sha>]*
 	offset := 0
-	entryCount := 0
 	for offset < len(treeData) {
-		entryCount++
 		// Parse mode and name
 		nullIndex := bytes.IndexByte(treeData[offset:], 0)
 		if nullIndex == -1 {
@@ -207,12 +214,10 @@ func checkoutTree(treeSHA, basePath string) error {
 		shaHex := hex.EncodeToString(sha)
 
 		fullPath := filepath.Join(basePath, name)
-		fmt.Printf("  Entry %d: mode=%s name=%s sha=%s path=%s\n", entryCount, mode, name, shaHex, fullPath)
 
 		// Determine entry type from mode
 		if mode == "40000" {
 			// Directory
-			fmt.Printf("    Creating directory: %s\n", fullPath)
 			if err := os.MkdirAll(fullPath, 0755); err != nil {
 				return fmt.Errorf("error creating directory %s: %w", fullPath, err)
 			}
@@ -222,10 +227,15 @@ func checkoutTree(treeSHA, basePath string) error {
 			}
 		} else {
 			// File - read the blob and write it to disk
-			fmt.Printf("    Creating file: %s\n", fullPath)
-			blobData, err := ReadGitObject(shaHex)
+			blobDataRaw, err := ReadGitObject(shaHex)
 			if err != nil {
 				return fmt.Errorf("error reading blob %s: %w", shaHex, err)
+			}
+
+			// Parse blob to get content (strip header)
+			_, blobData, err := ParseGitObject(blobDataRaw)
+			if err != nil {
+				return fmt.Errorf("error parsing blob %s: %w", shaHex, err)
 			}
 
 			// Write file with appropriate permissions
@@ -248,6 +258,5 @@ func checkoutTree(treeSHA, basePath string) error {
 		offset += nullIndex + 21
 	}
 
-	fmt.Printf("Finished checking out tree %s: processed %d entries\n", treeSHA, entryCount)
 	return nil
 }
