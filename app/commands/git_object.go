@@ -143,48 +143,49 @@ func ParsePktLine(data []byte) (string, []byte, error) {
 func ReadPktLines(resp *http.Response) ([]string, error) {
 	var lines []string
 	buf := make([]byte, 1024)
+	var pending []byte
 
 	for {
 		n, err := resp.Body.Read(buf)
-		if n == 0 {
-			break
-		}
-		if err != nil && err != io.EOF {
-			return nil, err
-		}
+		if n > 0 {
+			pending = append(pending, buf[:n]...)
 
-		// Process the buffer in pkt-line chunks
-		data := buf[:n]
-		for len(data) > 0 {
-			if len(data) < 4 {
-				break
+			// Try to extract as many complete pkt-lines as possible from pending
+			for {
+				if len(pending) < 4 {
+					// Not enough data for even a length header, read more
+					break
+				}
+
+				lengthStr := string(pending[:4])
+				length, err := strconv.ParseInt(lengthStr, 16, 32)
+				if err != nil {
+					return nil, fmt.Errorf("invalid pkt-line length: %s", lengthStr)
+				}
+
+				if length == 0 {
+					// Flush packet
+					lines = append(lines, "")
+					pending = pending[4:]
+					continue
+				}
+
+				if int(length) > len(pending) {
+					// Not enough data for a full pkt-line, read more
+					break
+				}
+
+				payload := string(pending[4:length])
+				lines = append(lines, strings.TrimSpace(payload))
+				pending = pending[length:]
 			}
-
-			lengthStr := string(data[:4])
-			length, err := strconv.ParseInt(lengthStr, 16, 32)
-			if err != nil {
-				return nil, fmt.Errorf("invalid pkt-line length: %s", lengthStr)
-			}
-
-			if length == 0 {
-				// Flush packet
-				lines = append(lines, "")
-				data = data[4:]
-				continue
-			}
-
-			if int(length) > len(data) {
-				// Not enough data, need to read more
-				break
-			}
-
-			payload := string(data[4:length])
-			lines = append(lines, strings.TrimSpace(payload))
-			data = data[length:]
 		}
 
 		if err == io.EOF {
 			break
+		}
+		if err != nil {
+			return nil, err
 		}
 	}
 
